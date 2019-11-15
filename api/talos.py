@@ -1,4 +1,4 @@
-from api.osint import Osint
+from api.osint.osint import Osint
 import api.comms as comms
 import requests as requests
 
