@@ -19,6 +19,9 @@ class HTTP_HEADER:
     def user_agent_mozilla(self):
         self.headers['User-Agent'] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.132 Safari/537.36"
 
+    def set_user_agent(self, useragent):
+        self.headers['User-Agent'] = useragent
+
     def accept_json(self):
         self.headers['Accept'] = 'application/json'
 

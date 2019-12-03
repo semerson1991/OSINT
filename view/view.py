@@ -3,6 +3,7 @@ import output.colours as colours
 from typing import Type
 from typing import List
 
+
 def print_banner(text="", font='slant', colour=colours.colour_white):
     view.print_banner(text, font, colour)
 

@@ -2,6 +2,10 @@ import sys
 import logging
 import osint.api.paths as paths
 import osint.api.utils as utils
+from osint.api.comms import HTTP_HEADER
+from osint.api.comms import HTTP
+
+
 from abc import ABC, abstractmethod
 
 logging.basicConfig()
@@ -20,6 +24,8 @@ except ImportError:
 
 
 class Osint(ABC):
+    headers = HTTP_HEADER()
+    http = HTTP()
 
     URL = None
     API_KEY = None
@@ -31,6 +37,10 @@ class Osint(ABC):
 
     @abstractmethod
     def get_formatted_results(self):
+        pass
+
+    @abstractmethod
+    def get_website_url(self, ioctype=None):
         pass
 
     def initialise_url(self, url):

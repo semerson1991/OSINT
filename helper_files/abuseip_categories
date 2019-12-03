@@ -1,7 +1,7 @@
 {
     "abuseip_categories": {
         "3":"Fraud Orders",
-        "4"	"DDoS",
+        "4":"DDoS",
         "5":"FTP",
         "6":"Ping of Death",
         "7":"Phishing",

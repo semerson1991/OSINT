@@ -33,6 +33,10 @@ from osint.api.comms import HTTP
 from osint.api.osint import Osint
 import osint.api.utils as utils
 import osint.api.paths as paths
+import requests
+
+import logging
+log = logging.getLogger(__name__)
 
 class AbuseIPDB(Osint):
 
@@ -61,39 +65,39 @@ class AbuseIPDB(Osint):
         self.reports = []
 
     def check_ip(self, ip, days=30):
-        headers = HTTP_HEADER()
+        headers = super().headers
         headers.accept_json()
         headers.set_custom('Key', self.API_KEY)
 
-        http = HTTP()
-        params = {'ipAddress': ip, 'maxAgeInDays': '90'}
+        http = super().http
+
+        params = {'ipAddress': ip, 'maxAgeInDays': days, 'verbose':''}
         for key, value in params.items():
             http.param(key, value)
-
         response = requests.request(method=HTTP.method_get(), url=self.URL, headers=headers.headers, params=http.params)
-
         self.parse_results(response)
+        return self
 
     def parse_results(self, response):
-        json = response.json()
-        data = json['data']
+        json_obj = response.json()
+        data = json_obj['data']
 
         self.ip = data['ipAddress']
-        self.is_public = ['isPublic']
-        self.abuse_score = ['abuseConfidenceScore']
-        self.country = ['countryCode']
-        self.country_name = ['countryName']
-        self.usage_type = ['usageType']
-        self.isp = ['isp']
-        self.domain = ['domain']
-        self.total_reports = ['totalReports']
-        self.last_report_date= ['lastReportedAt']
+        self.is_public = data['isPublic']
+        self.abuse_score = data['abuseConfidenceScore']
+        self.country = data['countryCode']
+        self.country_name = data['countryName']
+        self.usage_type = data['usageType']
+        self.isp = data['isp']
+        self.domain = data['domain']
+        self.total_reports = data['totalReports']
+        self.last_report_date = data['lastReportedAt']
 
         for report in data['reports']:
-            self.reports.append(Report(data=report['recportedAt'], comment=report['comment'], categories=report['categories']))
+            self.reports.append(Report(date=report['reportedAt'], comment=report['comment'], categories_ids=report['categories']))
 
-        decoded_response = json.loads(response.text)
-        self.ip = decoded_response("ipAddress")
+    def get_website_url(self, ioctype=None, ioc=""):
+        return f'www.abuseipdb.com/check/{ioc}'
 
     def MAX_DAYS(self):
         return 365
@@ -103,6 +107,8 @@ class AbuseIPDB(Osint):
 
     def get_formatted_results(self, ip=False, isPublic=False, abuse_score=False, country=False, country_name=False,
                               usage_type=False, isp=False, domain=False, total_reports=False, last_report_date=False, all=False):
+        pass
+
 
 
 
@@ -116,7 +122,7 @@ def initialise_report_categories():
 
 
 class Report:
-    _report_categories = initialise_report_categories()
+    _report_categories = initialise_report_categories()['abuseip_categories']
 
     def __init__(self, date="", comment="", categories_ids=[]):
         self.data = date
@@ -124,9 +130,12 @@ class Report:
         self.categories = self.parse_categories(categories_ids)
 
     def parse_categories(self, categories):
+        log.info("Hello logging!")
+
+
         result_categories = []
         for category_id in categories:
-            result_categories.append(Report._report_categories[category_id])
+            result_categories.append(Report._report_categories[str(category_id)])
 
         return result_categories
 
