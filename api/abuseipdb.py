@@ -25,46 +25,74 @@ characters in URIs.
 Full information: https://docs.abuseipdb.com/#check-endpoint
 '''
 
-import requests
 import json
-
-from osint.api.comms import HTTP_HEADER
 from osint.api.comms import HTTP
 from osint.api.osint import Osint
 import osint.api.utils as utils
 import osint.api.paths as paths
 import requests
-
 import logging
 log = logging.getLogger(__name__)
+
 
 class AbuseIPDB(Osint):
 
     _max_days = 365
     _min_days = 1
+    _daily_limit_reached = False
+    
+    type_ip = "IP"
+    type_public_ip = "public_ip"
+    type_abuse_score = "abusescore"
+    type_country = "country"
+    type_country_name = "country_name"
+    type_usage_type = "usage_ype"
+    type_isp = "isp"
+    type_domain = "domain"
+    type_total_reports = "total_reports"
+    type_last_reported_date = "last_reported"
 
+    def get_values(self, *value_types):
 
-    class Report():
-        def __init__(self, date="", comment=""):
-            self.data = date
-            self.comment = comment
+        values = {}
+        for value_type in value_types:
+            try:
+                if value_type == self.type_ip:
+                    values[value_type] = self._get_ipaddress()
+                if value_type == self.type_public_ip:
+                    values[value_type] = self._get_public_ip()
+                if value_type == self.type_abuse_score:
+                    values[value_type] = self._get_abuse_score()
+                if value_type == self.type_country:
+                    values[value_type] = self._get_country()
+                if value_type == self.type_country_name:
+                    values[value_type] = self._get_country_name()
+                if value_type == self.type_usage_type:
+                    values[value_type] = self._get_usage_type()
+                if value_type == self.type_isp:
+                    values[value_type] = self._get_isp()
+                if value_type == self.type_domain:
+                    values[value_type] = self._get_domain()
+                if value_type == self.type_total_reports:
+                    values[value_type] = self._get_total_reports()
+                if value_type == self.type_last_reported_date:
+                    values[value_type] = self._get_last_reported_date()
+            except Exception as e:
+                log.error(e)
+
+        return values
 
     def __init__(self):
         self.initialise_url('https://api.abuseipdb.com/api/v2/check')
         self.initialise_api_key("abuseipdb")
-        self.ip = ""
-        self.is_public = ""
-        self.abuse_score = ""
-        self.country = ""
-        self.country_name = ""
-        self.usage_type = ""
-        self.isp = ""
-        self.domain = ""
-        self.total_reports = ""
-        self.last_report_date = ""
+        self.failed_request = False
+        
+        self.website_url = ""
+        self.data = {}
         self.reports = []
 
     def check_ip(self, ip, days=30):
+        self.failed_request = False
         headers = super().headers
         headers.accept_json()
         headers.set_custom('Key', self.API_KEY)
@@ -75,43 +103,61 @@ class AbuseIPDB(Osint):
         for key, value in params.items():
             http.param(key, value)
         response = requests.request(method=HTTP.method_get(), url=self.URL, headers=headers.headers, params=http.params)
-        self.parse_results(response)
+        if response.status_code == 200:
+            json_obj = response.json()
+            self.data = json_obj['data']
+            self.website_url = f'www.abuseipdb.com/check/{ip}'
+            for report in self.data['reports']:
+                self.reports.append(
+                    Report(date=report['reportedAt'], comment=report['comment'], categories_ids=report['categories']))
+        elif response.status_code == 429:
+            self._daily_limit_reached = True
+        else:
+            response_text = response.text if response.text else ""
+            log.error("Request failed with status code " + str(response.status_code) + " " + response_text)
+
+        if response.status_code != 200:
+            self.failed_request = True
         return self
 
-    def parse_results(self, response):
-        json_obj = response.json()
-        data = json_obj['data']
+    def _get_ipaddress(self):
+        return self.data['ipAddress']
+    
+    def _get_public_ip(self):
+        return self.data['isPublic']
+    
+    def _get_abuse_score(self):
+        return self.data['abuseConfidenceScore']
+    
+    def _get_country(self):
+        return self.data['countryCode']
+    
+    def _get_country_name(self):
+        return self.data['countryName']
+    
+    def _get_usage_type(self):
+        return self.data['usageType']
+    
+    def _get_isp(self):
+        return self.data['isp']
+    
+    def _get_domain(self):
+        return self.data['domain']
+    
+    def _get_total_reports(self):
+        return self.data['totalReports']
+    
+    def _get_last_reported_date(self):
+        return self.data['lastReportedAt']
 
-        self.ip = data['ipAddress']
-        self.is_public = data['isPublic']
-        self.abuse_score = data['abuseConfidenceScore']
-        self.country = data['countryCode']
-        self.country_name = data['countryName']
-        self.usage_type = data['usageType']
-        self.isp = data['isp']
-        self.domain = data['domain']
-        self.total_reports = data['totalReports']
-        self.last_report_date = data['lastReportedAt']
+    def _get_reports(self):
+        return self.reports
 
-        for report in data['reports']:
-            self.reports.append(Report(date=report['reportedAt'], comment=report['comment'], categories_ids=report['categories']))
+    def max_days(self):
+        return self._max_days
 
-    def get_website_url(self, ioctype=None, ioc=""):
-        return f'www.abuseipdb.com/check/{ioc}'
-
-    def MAX_DAYS(self):
-        return 365
-
-    def MIN_DAYS(self):
-        return 1
-
-    def get_formatted_results(self, ip=False, isPublic=False, abuse_score=False, country=False, country_name=False,
-                              usage_type=False, isp=False, domain=False, total_reports=False, last_report_date=False, all=False):
-        pass
-
-
-
-
+    def min_days(self):
+        return self._min_days
 
 def initialise_report_categories():
     content = utils.get_file_contents(paths.abuseip_categories)
@@ -130,13 +176,12 @@ class Report:
         self.categories = self.parse_categories(categories_ids)
 
     def parse_categories(self, categories):
-        log.info("Hello logging!")
-
-
+        log.info("Parsing AbuseIPDB report categories")
         result_categories = []
         for category_id in categories:
             result_categories.append(Report._report_categories[str(category_id)])
 
         return result_categories
+
 
 

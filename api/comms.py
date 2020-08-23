@@ -11,6 +11,10 @@ class HTTP:
     def method_get():
         return 'GET'
 
+    @staticmethod
+    def method_post():
+        return 'POST'
+
 class HTTP_HEADER:
 
     def __init__(self):

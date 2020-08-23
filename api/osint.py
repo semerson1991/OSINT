@@ -4,7 +4,8 @@ import osint.api.paths as paths
 import osint.api.utils as utils
 from osint.api.comms import HTTP_HEADER
 from osint.api.comms import HTTP
-
+import logging
+log = logging.getLogger(__name__)
 
 from abc import ABC, abstractmethod
 
@@ -29,19 +30,6 @@ class Osint(ABC):
 
     URL = None
     API_KEY = None
-
-
-    @abstractmethod
-    def parse_results(self, data):
-        pass
-
-    @abstractmethod
-    def get_formatted_results(self):
-        pass
-
-    @abstractmethod
-    def get_website_url(self, ioctype=None):
-        pass
 
     def initialise_url(self, url):
         self.URL = url
